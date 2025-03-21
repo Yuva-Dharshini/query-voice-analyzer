@@ -7,7 +7,7 @@ import ResumeUploader from "@/components/ResumeUploader";
 import QuestionCard from "@/components/QuestionCard";
 import AnalysisResult from "@/components/AnalysisResult";
 import { generateQuestionsFromResume, analyzeResponses, Question } from "@/lib/api";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { FileText, Mic, BarChart3 } from "lucide-react";
 
 enum InterviewStep {

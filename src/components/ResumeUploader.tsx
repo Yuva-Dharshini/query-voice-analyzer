@@ -1,9 +1,8 @@
-
 import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, FileText, X } from "lucide-react";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 interface ResumeUploaderProps {
   onResumeExtracted: (text: string, fileName: string) => void;
