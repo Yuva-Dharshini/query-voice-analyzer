@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
@@ -25,6 +26,33 @@ const Index: React.FC = () => {
   const [answers, setAnswers] = useState<{ [key: number]: string }>({});
   const [analysis, setAnalysis] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  
+  // Real-time analysis generation when answers change
+  useEffect(() => {
+    // Only start analyzing when we have at least one answered question
+    const answeredQuestionsCount = Object.keys(answers).length;
+    if (resumeText && questions.length > 0 && answeredQuestionsCount > 0) {
+      const analyzeAnswers = async () => {
+        setIsAnalyzing(true);
+        try {
+          const result = await analyzeResponses(resumeText, questions, answers);
+          setAnalysis(result);
+        } catch (error) {
+          console.error('Error analyzing responses:', error);
+        } finally {
+          setIsAnalyzing(false);
+        }
+      };
+      
+      // Use debounce to prevent too frequent API calls
+      const debounceTimeout = setTimeout(() => {
+        analyzeAnswers();
+      }, 1000);
+      
+      return () => clearTimeout(debounceTimeout);
+    }
+  }, [answers, resumeText, questions]);
   
   const handleResumeExtracted = async (text: string, fileName: string) => {
     setResumeText(text);
@@ -68,9 +96,15 @@ const Index: React.FC = () => {
     setIsLoading(true);
     
     try {
-      const result = await analyzeResponses(resumeText, questions, answers);
-      setAnalysis(result);
-      setCurrentStep(InterviewStep.VIEW_ANALYSIS);
+      // Use the already generated analysis if available
+      if (analysis) {
+        setCurrentStep(InterviewStep.VIEW_ANALYSIS);
+      } else {
+        // Generate a final analysis if not already available
+        const result = await analyzeResponses(resumeText, questions, answers);
+        setAnalysis(result);
+        setCurrentStep(InterviewStep.VIEW_ANALYSIS);
+      }
     } catch (error) {
       console.error('Error analyzing responses:', error);
       toast.error('Failed to analyze responses. Please try again.');
@@ -187,6 +221,13 @@ const Index: React.FC = () => {
           </div>
         ) : (
           renderCurrentStep()
+        )}
+        
+        {isAnalyzing && currentStep === InterviewStep.ANSWER_QUESTIONS && (
+          <div className="fixed bottom-4 right-4 bg-secondary rounded-full px-4 py-2 shadow-md animate-pulse flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-primary"></div>
+            <span className="text-xs text-muted-foreground">Analyzing your answers...</span>
+          </div>
         )}
       </div>
     </div>
