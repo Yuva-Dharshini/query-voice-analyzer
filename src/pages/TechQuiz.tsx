@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle, ArrowLeft, ArrowRight, RefreshCcw } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import QuizTopicCard from '@/components/QuizTopicCard';
 
 interface QuizQuestion {
   id: number;
@@ -556,14 +556,16 @@ const TechQuiz: React.FC = () => {
   const [userAnswers, setUserAnswers] = useState<number[]>([]);
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
+  const [showTopicSelection, setShowTopicSelection] = useState(true);
 
   // Reset the quiz when the topic changes
-  const handleTopicChange = (value: string) => {
-    setSelectedTopic(value);
+  const handleTopicChange = (topic: string) => {
+    setSelectedTopic(topic);
     setCurrentQuestionIndex(0);
-    setUserAnswers(Array(allQuizQuestions[value].length).fill(-1));
+    setUserAnswers(Array(allQuizQuestions[topic].length).fill(-1));
     setQuizCompleted(false);
     setQuizResult(null);
+    setShowTopicSelection(false);
   };
 
   // Current quiz questions based on selected topic
@@ -630,11 +632,8 @@ const TechQuiz: React.FC = () => {
   const currentQuestion = quizQuestions[currentQuestionIndex];
   const hasAnswered = userAnswers[currentQuestionIndex] !== -1;
 
-  // Get topic options for the select component
-  const topicOptions = Object.keys(allQuizQuestions).map(topic => ({
-    value: topic,
-    label: topic.charAt(0).toUpperCase() + topic.slice(1)
-  }));
+  // Get topic options for the topic cards
+  const topicOptions = Object.keys(allQuizQuestions);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/30">
@@ -653,155 +652,173 @@ const TechQuiz: React.FC = () => {
           Test your knowledge of web development with these multiple-choice questions.
         </p>
 
-        <div className="max-w-md mx-auto mb-8">
-          <Select value={selectedTopic} onValueChange={handleTopicChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a topic" />
-            </SelectTrigger>
-            <SelectContent>
+        {showTopicSelection ? (
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-xl font-semibold mb-4">Select a Topic</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {topicOptions.map(topic => (
-                <SelectItem key={topic.value} value={topic.value}>
-                  {topic.label}
-                </SelectItem>
+                <QuizTopicCard
+                  key={topic}
+                  topic={topic}
+                  isSelected={topic === selectedTopic}
+                  onClick={() => handleTopicChange(topic)}
+                />
               ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Separator className="mb-8" />
-
-        {!quizCompleted ? (
-          <div className="max-w-2xl mx-auto">
-            <div className="w-full mb-6">
-              <div className="flex justify-between items-center mb-2 text-sm text-muted-foreground">
-                <span>Question {currentQuestionIndex + 1} of {quizQuestions.length}</span>
-                <span>{Math.round(((currentQuestionIndex + 1) / quizQuestions.length) * 100)}% Complete</span>
-              </div>
-              <Progress value={((currentQuestionIndex + 1) / quizQuestions.length) * 100} className="h-2" />
             </div>
-
-            <Card className="shadow-md border border-border/40">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  <span className="inline-flex items-center justify-center rounded-full bg-primary/10 w-8 h-8 text-primary font-semibold">
-                    {currentQuestionIndex + 1}
-                  </span>
-                  <span>{currentQuestion.question}</span>
-                </CardTitle>
-              </CardHeader>
-
-              <CardContent>
-                <RadioGroup
-                  value={userAnswers[currentQuestionIndex] !== undefined ? userAnswers[currentQuestionIndex].toString() : undefined}
-                  onValueChange={handleAnswerSelect}
-                  className="space-y-4"
-                >
-                  {currentQuestion.options.map((option, index) => (
-                    <div key={index} className="flex items-center space-x-2 rounded-md border p-3 transition-colors hover:bg-secondary/50">
-                      <RadioGroupItem value={index.toString()} id={`option-${index}`} />
-                      <Label htmlFor={`option-${index}`} className="flex-grow cursor-pointer">{option}</Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </CardContent>
-
-              <CardFooter className="flex justify-between">
-                <Button
-                  variant="outline"
-                  onClick={handlePreviousQuestion}
-                  disabled={currentQuestionIndex === 0}
-                  className="gap-1"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Previous
-                </Button>
-
-                <Button
-                  onClick={handleNextQuestion}
-                  disabled={!hasAnswered}
-                  className="gap-1"
-                >
-                  {currentQuestionIndex === quizQuestions.length - 1 ? 'Finish' : 'Next'}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </CardFooter>
-            </Card>
           </div>
         ) : (
-          <div className="max-w-3xl mx-auto">
-            <Card className="shadow-md border border-border/40">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                  {selectedTopic.charAt(0).toUpperCase() + selectedTopic.slice(1)} Quiz Results
-                </CardTitle>
-              </CardHeader>
-              
-              <CardContent>
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold">Your Score</h3>
-                      <p className="text-muted-foreground">
-                        {quizResult?.correctAnswers} out of {quizResult?.totalQuestions} correct
-                      </p>
-                    </div>
-                    <div className="text-3xl font-bold text-primary">{quizResult?.score}%</div>
+          <>
+            <div className="flex justify-between items-center max-w-2xl mx-auto mb-6">
+              <h2 className="text-xl font-semibold">
+                Topic: {selectedTopic.charAt(0).toUpperCase() + selectedTopic.slice(1)}
+              </h2>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowTopicSelection(true)}
+              >
+                Change Topic
+              </Button>
+            </div>
+
+            <Separator className="mb-8" />
+
+            {!quizCompleted ? (
+              <div className="max-w-2xl mx-auto">
+                <div className="w-full mb-6">
+                  <div className="flex justify-between items-center mb-2 text-sm text-muted-foreground">
+                    <span>Question {currentQuestionIndex + 1} of {quizQuestions.length}</span>
+                    <span>{Math.round(((currentQuestionIndex + 1) / quizQuestions.length) * 100)}% Complete</span>
                   </div>
-                  <Progress value={quizResult?.score || 0} className="h-3" />
+                  <Progress value={((currentQuestionIndex + 1) / quizQuestions.length) * 100} className="h-2" />
                 </div>
-                
-                <Separator className="my-6" />
-                
-                <h3 className="text-lg font-semibold mb-4">Question Review</h3>
-                <div className="space-y-6">
-                  {quizResult?.answers.map((answer, index) => (
-                    <div key={index} className="space-y-2">
-                      <h4 className="font-medium flex items-center gap-2">
-                        <span className="inline-flex items-center justify-center rounded-full bg-primary/10 w-6 h-6 text-primary text-xs font-semibold">
-                          {index + 1}
-                        </span>
-                        {quizQuestions[index].question}
-                      </h4>
-                      
-                      <div className={`p-3 rounded-md text-sm ${answer.isCorrect ? 'bg-green-100/50 dark:bg-green-900/20' : 'bg-red-100/50 dark:bg-red-900/20'}`}>
-                        <div className="flex justify-between">
-                          <div>
-                            <p className="font-medium">Your answer:</p>
-                            <p>{answer.userAnswer}</p>
-                          </div>
-                          {!answer.isCorrect && (
-                            <div className="text-right">
-                              <p className="font-medium">Correct answer:</p>
-                              <p>{answer.correctAnswer}</p>
-                            </div>
-                          )}
+
+                <Card className="shadow-md border border-border/40">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <span className="inline-flex items-center justify-center rounded-full bg-primary/10 w-8 h-8 text-primary font-semibold">
+                        {currentQuestionIndex + 1}
+                      </span>
+                      <span>{currentQuestion.question}</span>
+                    </CardTitle>
+                  </CardHeader>
+
+                  <CardContent>
+                    <RadioGroup
+                      value={userAnswers[currentQuestionIndex] !== undefined ? userAnswers[currentQuestionIndex].toString() : undefined}
+                      onValueChange={handleAnswerSelect}
+                      className="space-y-4"
+                    >
+                      {currentQuestion.options.map((option, index) => (
+                        <div key={index} className="flex items-center space-x-2 rounded-md border p-3 transition-colors hover:bg-secondary/50">
+                          <RadioGroupItem value={index.toString()} id={`option-${index}`} />
+                          <Label htmlFor={`option-${index}`} className="flex-grow cursor-pointer">{option}</Label>
                         </div>
+                      ))}
+                    </RadioGroup>
+                  </CardContent>
+
+                  <CardFooter className="flex justify-between">
+                    <Button
+                      variant="outline"
+                      onClick={handlePreviousQuestion}
+                      disabled={currentQuestionIndex === 0}
+                      className="gap-1"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+
+                    <Button
+                      onClick={handleNextQuestion}
+                      disabled={!hasAnswered}
+                      className="gap-1"
+                    >
+                      {currentQuestionIndex === quizQuestions.length - 1 ? 'Finish' : 'Next'}
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </div>
+            ) : (
+              <div className="max-w-3xl mx-auto">
+                <Card className="shadow-md border border-border/40">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                      {selectedTopic.charAt(0).toUpperCase() + selectedTopic.slice(1)} Quiz Results
+                    </CardTitle>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <div className="mb-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold">Your Score</h3>
+                          <p className="text-muted-foreground">
+                            {quizResult?.correctAnswers} out of {quizResult?.totalQuestions} correct
+                          </p>
+                        </div>
+                        <div className="text-3xl font-bold text-primary">{quizResult?.score}%</div>
                       </div>
-                      
-                      <Separator className="mt-4" />
+                      <Progress value={quizResult?.score || 0} className="h-3" />
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-              
-              <CardFooter className="flex justify-between">
-                <Button variant="outline" asChild>
-                  <Link to="/" className="gap-2">
-                    <ArrowLeft className="h-4 w-4" />
-                    Back to Home
-                  </Link>
-                </Button>
-                <Button 
-                  onClick={restartQuiz}
-                  className="gap-2"
-                >
-                  <RefreshCcw className="h-4 w-4" />
-                  Restart Quiz
-                </Button>
-              </CardFooter>
-            </Card>
-          </div>
+                    
+                    <Separator className="my-6" />
+                    
+                    <h3 className="text-lg font-semibold mb-4">Question Review</h3>
+                    <div className="space-y-6">
+                      {quizResult?.answers.map((answer, index) => (
+                        <div key={index} className="space-y-2">
+                          <h4 className="font-medium flex items-center gap-2">
+                            <span className="inline-flex items-center justify-center rounded-full bg-primary/10 w-6 h-6 text-primary text-xs font-semibold">
+                              {index + 1}
+                            </span>
+                            {quizQuestions[index].question}
+                          </h4>
+                          
+                          <div className={`p-3 rounded-md text-sm ${answer.isCorrect ? 'bg-green-100/50 dark:bg-green-900/20' : 'bg-red-100/50 dark:bg-red-900/20'}`}>
+                            <div className="flex justify-between">
+                              <div>
+                                <p className="font-medium">Your answer:</p>
+                                <p>{answer.userAnswer}</p>
+                              </div>
+                              {!answer.isCorrect && (
+                                <div className="text-right">
+                                  <p className="font-medium">Correct answer:</p>
+                                  <p>{answer.correctAnswer}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <Separator className="mt-4" />
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                  
+                  <CardFooter className="flex justify-between">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowTopicSelection(true)}
+                      className="gap-2"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                      Choose Another Topic
+                    </Button>
+                    <Button 
+                      onClick={restartQuiz}
+                      className="gap-2"
+                    >
+                      <RefreshCcw className="h-4 w-4" />
+                      Restart Quiz
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
