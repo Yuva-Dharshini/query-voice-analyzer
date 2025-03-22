@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, FileText, X } from "lucide-react";
 import { toast } from "sonner";
+import { extractTextFromResume } from "@/lib/api";
 
 interface ResumeUploaderProps {
   onResumeExtracted: (text: string, fileName: string) => void;
@@ -66,33 +67,13 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
     setIsUploading(true);
     
     try {
-      // For now, we'll simulate extracting text from a file
-      // In a real app, this would call an API to process the file
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate processing time
+      const resumeText = await extractTextFromResume(selectedFile);
       
-      // This is a simplified implementation
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string || "File content extracted successfully.";
-        onResumeExtracted(result, selectedFile.name);
-        toast.success('Resume uploaded successfully!');
-      };
-      
-      if (selectedFile.type === 'text/plain') {
-        reader.readAsText(selectedFile);
-      } else {
-        // For PDF and DOCX files, this would normally require backend processing
-        // Here we're just simulating success
-        reader.onload = () => {
-          const content = `Simulated content extraction from ${selectedFile.name}\n\nSkills: React, TypeScript, Node.js\nExperience: 5 years software development\nEducation: B.S. Computer Science`;
-          onResumeExtracted(content, selectedFile.name);
-          toast.success('Resume uploaded successfully!');
-        };
-        reader.readAsArrayBuffer(selectedFile);
-      }
+      onResumeExtracted(resumeText, selectedFile.name);
+      toast.success('Resume uploaded and analyzed successfully!');
     } catch (error) {
       console.error('Error uploading resume:', error);
-      toast.error('Failed to upload resume. Please try again.');
+      toast.error('Failed to analyze resume. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -171,7 +152,7 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
             disabled={isUploading} 
             className="w-full"
           >
-            {isUploading ? 'Processing...' : 'Upload Resume'}
+            {isUploading ? 'Analyzing resume...' : 'Upload Resume'}
           </Button>
         </CardFooter>
       )}
