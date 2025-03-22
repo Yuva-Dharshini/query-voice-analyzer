@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,13 +68,22 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
     setIsUploading(true);
     
     try {
+      // Extract text from the resume
       const resumeText = await extractTextFromResume(selectedFile);
       
+      // Log the extracted text to help with debugging
+      console.log("Extracted resume text:", resumeText.substring(0, 200) + "...");
+      
+      if (!resumeText || resumeText.length < 50) {
+        throw new Error("Could not extract enough content from the resume");
+      }
+      
+      // Pass the extracted text to the parent component
       onResumeExtracted(resumeText, selectedFile.name);
       toast.success('Resume uploaded and analyzed successfully!');
     } catch (error) {
       console.error('Error uploading resume:', error);
-      toast.error('Failed to analyze resume. Please try again.');
+      toast.error('Failed to analyze resume. Please try again or use a different file format.');
     } finally {
       setIsUploading(false);
     }
