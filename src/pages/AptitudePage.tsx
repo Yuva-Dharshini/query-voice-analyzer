@@ -331,6 +331,7 @@ const AptitudePage: React.FC = () => {
   const [isQuestionSubmitted, setIsQuestionSubmitted] = useState(false);
   const [sectionScores, setSectionScores] = useState<{[key: string]: number}>({});
   const [completedSections, setCompletedSections] = useState<string[]>([]);
+  const [sectionProgress, setSectionProgress] = useState<{[key: string]: number}>({});
 
   const currentSection = aptitudeSections[currentSectionIndex];
   const currentQuestion = currentSection?.questions[currentQuestionIndex];
@@ -373,6 +374,12 @@ const AptitudePage: React.FC = () => {
   const submitAnswer = () => {
     setIsQuestionSubmitted(true);
     
+    // Update section progress
+    setSectionProgress(prev => ({
+      ...prev,
+      [currentSection.id]: (currentQuestionIndex + 1)
+    }));
+    
     // Update score if correct
     if (selectedAnswer === currentQuestion.correctAnswer) {
       setSectionScores(prev => ({
@@ -410,6 +417,7 @@ const AptitudePage: React.FC = () => {
     setIsQuestionSubmitted(false);
     setSectionScores({});
     setCompletedSections([]);
+    setSectionProgress({});
   };
   
   const startSpecificSection = (index: number) => {
@@ -444,6 +452,8 @@ const AptitudePage: React.FC = () => {
                     index !== currentSectionIndex && 
                     !completedSections.includes(aptitudeSections[index - 1].id)
                   }
+                  completedQuestions={sectionProgress[section.id] || 0}
+                  totalQuestions={section.questions.length}
                   onClick={() => startSpecificSection(index)}
                 />
               ))}

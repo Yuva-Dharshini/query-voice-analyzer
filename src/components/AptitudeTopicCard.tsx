@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Calculator, Layers, Type, Brain, User, Search, MessageSquare } from "lucide-react";
 
 export type AptitudeTopic = 
@@ -19,6 +20,8 @@ interface AptitudeTopicCardProps {
   isCompleted: boolean;
   isCurrent: boolean;
   isLocked: boolean;
+  completedQuestions?: number;
+  totalQuestions?: number;
   onClick: () => void;
 }
 
@@ -39,6 +42,8 @@ const AptitudeTopicCard: React.FC<AptitudeTopicCardProps> = ({
   isCompleted, 
   isCurrent, 
   isLocked, 
+  completedQuestions = 0,
+  totalQuestions = 0,
   onClick 
 }) => {
   const icon = TOPIC_ICONS[topic];
@@ -64,6 +69,21 @@ const AptitudeTopicCard: React.FC<AptitudeTopicCardProps> = ({
           {title}
         </h3>
         <p className="text-muted-foreground text-sm mb-4">{description}</p>
+        
+        {/* Show progress for sections that have started or completed */}
+        {(completedQuestions > 0 || isCompleted) && (
+          <div className="mt-auto">
+            <div className="flex justify-between text-xs text-muted-foreground mb-1">
+              <span>Progress</span>
+              <span>{completedQuestions}/{totalQuestions} questions</span>
+            </div>
+            <Progress 
+              value={(completedQuestions / totalQuestions) * 100} 
+              className="h-1"
+              indicatorClassName={isCompleted ? "bg-green-500" : ""}
+            />
+          </div>
+        )}
         
         {isCompleted && (
           <div className="absolute top-4 right-4 bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center">
