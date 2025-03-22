@@ -365,6 +365,7 @@ const AptitudePage: React.FC = () => {
   
   const startTest = () => {
     setTestState(TestState.SECTION);
+    setCurrentQuestionIndex(0); // Reset question index when starting the test
   };
   
   const selectAnswer = (answerId: number) => {
@@ -399,6 +400,7 @@ const AptitudePage: React.FC = () => {
         // Move to next section or results
         if (currentSectionIndex < totalSections - 1) {
           setCurrentSectionIndex(prev => prev + 1);
+          setCurrentQuestionIndex(0); // Reset question index for new section
         } else {
           setTestState(TestState.RESULTS);
         }
@@ -422,7 +424,9 @@ const AptitudePage: React.FC = () => {
   
   const startSpecificSection = (index: number) => {
     setCurrentSectionIndex(index);
-    setCurrentQuestionIndex(0);
+    setCurrentQuestionIndex(0); // Ensure we start at the first question
+    setSelectedAnswer(null);
+    setIsQuestionSubmitted(false);
     setTestState(TestState.SECTION);
   };
   
