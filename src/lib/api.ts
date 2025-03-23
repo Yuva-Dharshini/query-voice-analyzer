@@ -12,16 +12,27 @@ export async function generateQuestionsFromResume(resumeText: string): Promise<Q
     "Content-Type": "application/json"
   };
   
+  // Make sure the text isn't too large for the API
+  const trimmedResumeText = resumeText.substring(0, 4000);
+  
+  const systemPrompt = `You are an expert technical interviewer analyzing resumes to generate specific, personalized interview questions.
+  Your task is to create 5 highly specific questions that directly reference details from the candidate's resume.
+  Each question should probe deeper into a skill, experience, or project mentioned in the resume.
+  DO NOT create generic questions that could apply to any candidate.
+  Every question MUST reference specific information from the resume.
+  Focus on technical skills, projects, responsibilities, and achievements mentioned.
+  Format output as a JSON array of objects with 'id' and 'text' fields.`;
+  
   const data = {
     "model": "llama3-70b-8192",
     "messages": [
       {
         "role": "system", 
-        "content": "You are a technical interviewer analyzing resumes to generate specific, personalized questions. Focus on the candidate's skills, experience, and potential gaps. Extract details from their resume and create questions that will help assess their capabilities for the roles they're pursuing."
+        "content": systemPrompt
       },
       {
         "role": "user",
-        "content": `Based on the following resume, generate 5 specific and personalized interview questions. Don't use generic questions - they must be directly related to the candidate's experience, skills, or projects mentioned in the resume. Format your response as a JSON array with each question having an 'id' and 'text' field.\n\nRESUME:\n${resumeText}`
+        "content": `Generate 5 specific interview questions based on this resume. Reference exact details from the resume in each question:\n\n${trimmedResumeText}`
       }
     ],
     "temperature": 0.7,
@@ -29,7 +40,7 @@ export async function generateQuestionsFromResume(resumeText: string): Promise<Q
   };
   
   try {
-    console.log("Sending resume for question generation:", resumeText.substring(0, 100) + "...");
+    console.log("Sending resume for question generation:", trimmedResumeText.substring(0, 100) + "...");
     const response = await fetch(API_URL, {
       method: "POST",
       headers,
@@ -105,7 +116,7 @@ function extractQuestionsFromText(text: string): Question[] {
   }
   
   // Pattern 3: Lines that end with question marks
-  const questionMarkRegex = /^(.+\?\s*)$/gm;
+  const questionMarkRegex = /(.+\?\s*)$/gm;
   const questionMarkMatches = Array.from(text.matchAll(questionMarkRegex));
   
   if (questionMarkMatches.length > 0) {
@@ -124,24 +135,119 @@ function extractQuestionsFromText(text: string): Question[] {
 }
 
 function generateFallbackQuestions(resumeText: string): Question[] {
-  // Create personalized fallback questions based on resume text
-  const skills = resumeText.match(/skills?:?\s*([^.]*)/i)?.[1] || "your technical skills";
-  const experience = resumeText.match(/experience:?\s*([^.]*)/i)?.[1] || "your most recent experience";
-  const education = resumeText.match(/education:?\s*([^.]*)/i)?.[1] || "your educational background";
+  // Extract specific information from the resume text for personalized fallback questions
   
-  // Extract more specific details from resume if possible
-  const techSkills = resumeText.match(/javascript|python|react|node|aws|docker|kubernetes|sql|nosql|agile|ci\/cd/gi);
-  const projectDetails = resumeText.match(/led|implemented|developed|created|designed|maintained|collaborated/gi);
+  // Look for skill mentions
+  const skillsMatch = resumeText.match(/skills?:?\s*([^.]*)/i);
+  const skills = skillsMatch ? skillsMatch[1].trim() : "";
   
-  const skillsList = techSkills ? Array.from(new Set(techSkills)).join(', ') : skills;
+  // Look for specific technologies
+  let technologies: string[] = [];
+  const techKeywords = ["JavaScript", "Python", "Java", "C#", "React", "Angular", "Vue", "Node.js", 
+    "Express", "Django", "Flask", "Spring", "AWS", "Azure", "GCP", "Docker", "Kubernetes", 
+    "SQL", "NoSQL", "MongoDB", "PostgreSQL", "MySQL", "GraphQL", "REST", "API", "Agile", "Scrum"];
   
-  return [
-    { id: 1, text: `Could you elaborate on your experience with ${skillsList}?` },
-    { id: 2, text: `Tell me more about your role in ${experience.trim()}.` },
-    { id: 3, text: `Based on your resume, you've worked with various technologies. Which one do you find most interesting and why?` },
-    { id: 4, text: `Can you describe a specific project where you applied the skills mentioned in your resume?` },
-    { id: 5, text: `How has your education in ${education.trim()} prepared you for your career in technology?` }
-  ];
+  for (const tech of techKeywords) {
+    if (resumeText.toLowerCase().includes(tech.toLowerCase())) {
+      technologies.push(tech);
+    }
+  }
+  
+  // Look for companies or roles
+  const experienceMatch = resumeText.match(/(?:experience|work|employment):?\s*([^.]*)/i);
+  const experienceText = experienceMatch ? experienceMatch[1].trim() : "";
+  
+  // Find company names (assuming they're followed by dates in parentheses or preceded by "at")
+  const companyMatch = resumeText.match(/(?:at|with)\s+([A-Z][A-Za-z\s]+)(?:\s+\(|\s+[0-9])/);
+  const company = companyMatch ? companyMatch[1].trim() : "";
+  
+  // Look for education
+  const educationMatch = resumeText.match(/education:?\s*([^.]*)/i);
+  const education = educationMatch ? educationMatch[1].trim() : "";
+  
+  // Look for projects
+  const projectsMatch = resumeText.match(/projects?:?\s*([^.]*)/i);
+  const projects = projectsMatch ? projectsMatch[1].trim() : "";
+  
+  // Look for achievements
+  const achievementsMatch = resumeText.match(/achievements?:?\s*([^.]*)/i);
+  const achievements = achievementsMatch ? achievementsMatch[1].trim() : "";
+  
+  // Create personalized questions based on extracted information
+  const questions: Question[] = [];
+  
+  if (technologies.length > 0) {
+    const randomTechs = technologies.slice(0, 3).join(", ");
+    questions.push({
+      id: 1,
+      text: `You listed ${randomTechs} among your technical skills. Can you describe a specific project where you used ${technologies[0]} to solve a complex problem?`
+    });
+  } else if (skills) {
+    questions.push({
+      id: 1,
+      text: `You mentioned ${skills} in your resume. Could you elaborate on how you've applied these skills in your most recent projects?`
+    });
+  } else {
+    questions.push({
+      id: 1,
+      text: `Looking at your technical background, which skill or technology do you consider your strongest, and why?`
+    });
+  }
+  
+  if (company) {
+    questions.push({
+      id: 2,
+      text: `During your time at ${company}, what was the most challenging project you worked on, and how did you overcome the technical obstacles?`
+    });
+  } else if (experienceText) {
+    questions.push({
+      id: 2,
+      text: `Based on your experience with ${experienceText}, what technical lessons have you learned that you apply to your work today?`
+    });
+  } else {
+    questions.push({
+      id: 2,
+      text: `Tell me about a time when you had to quickly learn a new technology or framework for a project. How did you approach the learning process?`
+    });
+  }
+  
+  if (projects) {
+    questions.push({
+      id: 3,
+      text: `You mentioned involvement in ${projects}. Could you walk me through your specific contributions and the technologies you used?`
+    });
+  } else {
+    questions.push({
+      id: 3,
+      text: `Describe a project where you had to make significant architectural decisions. What factors influenced your choices?`
+    });
+  }
+  
+  if (education) {
+    questions.push({
+      id: 4,
+      text: `How has your education in ${education} prepared you for your technical career, and what additional skills have you had to develop on the job?`
+    });
+  } else {
+    questions.push({
+      id: 4,
+      text: `Which educational experiences or courses have been most valuable in your technical development, and why?`
+    });
+  }
+  
+  if (achievements) {
+    questions.push({
+      id: 5,
+      text: `You highlighted ${achievements} as an achievement. Could you explain the technical challenges involved and how your solution made an impact?`
+    });
+  } else {
+    questions.push({
+      id: 5,
+      text: `What technical achievement in your career are you most proud of, and what made it particularly challenging or rewarding?`
+    });
+  }
+  
+  return questions;
 }
 
 export async function analyzeResponses(
