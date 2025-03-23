@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,64 +62,6 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
     }
   };
   
-  const extractResumeText = async (file: File): Promise<string> => {
-    try {
-      // For text files, read directly
-      if (file.type === 'text/plain') {
-        return await file.text();
-      }
-      
-      // For PDF or DOCX, try to extract text
-      const extractedText = await extractTextFromResume(file);
-      
-      // If we have reasonable content, use it
-      if (extractedText && extractedText.length > 100) {
-        return extractedText;
-      }
-      
-      // If extraction failed or returned too little content, use fallback
-      console.log("Using fallback resume content due to extraction issues");
-      return getDefaultResumeContent(file.name);
-    } catch (error) {
-      console.error("Error extracting text:", error);
-      return getDefaultResumeContent(file.name);
-    }
-  };
-  
-  const getDefaultResumeContent = (fileName: string): string => {
-    // Create a structured resume with standard sections
-    const name = fileName.split('.')[0].replace(/[_-]/g, ' ');
-    
-    return `
-Name: ${name}
-Contact: example@email.com | (555) 123-4567
-
-Summary:
-Experienced software developer with a passion for creating efficient, scalable solutions. Strong background in full-stack development with expertise in modern frameworks and cloud technologies.
-
-Skills:
-- JavaScript/TypeScript, React, Node.js
-- Python, Django, Flask
-- AWS, Docker, Kubernetes
-- SQL and NoSQL databases
-- Agile methodologies, CI/CD
-
-Experience:
-Senior Developer at Tech Solutions Inc. (2019-Present)
-- Led the development of a microservices architecture that improved system performance by 40%
-- Implemented automated testing that reduced bugs in production by 60%
-- Mentored junior developers and conducted code reviews
-
-Software Engineer at WebApps Co. (2016-2019)
-- Developed and maintained client-facing applications using React
-- Collaborated with design team to implement responsive UI components
-- Participated in Agile sprints and contributed to product roadmap
-
-Education:
-B.S. Computer Science, Tech University (2016)
-`;
-  };
-  
   const handleUpload = async () => {
     if (!selectedFile) return;
     
@@ -126,16 +69,17 @@ B.S. Computer Science, Tech University (2016)
     
     try {
       // Extract text from the resume
-      const resumeText = await extractResumeText(selectedFile);
+      const resumeText = await extractTextFromResume(selectedFile);
       
-      // Log a sample of the extracted text for debugging
-      console.log("Extracted resume text (first 200 chars):", resumeText.substring(0, 200));
+      // Log the extracted text to help with debugging
+      console.log("Extracted resume text:", resumeText.substring(0, 200) + "...");
       
-      // Trim to avoid token limit issues with the API
-      const trimmedText = resumeText.substring(0, 4000);
+      if (!resumeText || resumeText.length < 50) {
+        throw new Error("Could not extract enough content from the resume");
+      }
       
       // Pass the extracted text to the parent component
-      onResumeExtracted(trimmedText, selectedFile.name);
+      onResumeExtracted(resumeText, selectedFile.name);
       toast.success('Resume uploaded and analyzed successfully!');
     } catch (error) {
       console.error('Error uploading resume:', error);
