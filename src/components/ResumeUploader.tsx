@@ -1,9 +1,11 @@
+
 import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileText, X } from "lucide-react";
+import { Upload, FileText, X, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { extractTextFromResume } from "@/lib/api";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ResumeUploaderProps {
   onResumeExtracted: (text: string, fileName: string) => void;
@@ -13,6 +15,7 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [extractionAlert, setExtractionAlert] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -48,6 +51,12 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
     }
     
     setSelectedFile(file);
+    setExtractionAlert(null);
+    
+    // Add note about text extraction for non-plaintext files
+    if (file.type !== 'text/plain') {
+      setExtractionAlert('For best results, plain text (TXT) files are recommended. PDF and DOCX content extraction may be limited in this demo.');
+    }
   };
   
   const handleUploadClick = () => {
@@ -56,6 +65,7 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
   
   const handleRemoveFile = () => {
     setSelectedFile(null);
+    setExtractionAlert(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -68,6 +78,13 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
     
     try {
       const resumeText = await extractTextFromResume(selectedFile);
+      
+      // Verify we have enough content to work with
+      if (resumeText.length < 50) {
+        toast.error('Unable to extract sufficient text from the resume. Please try a different file format.');
+        setIsUploading(false);
+        return;
+      }
       
       onResumeExtracted(resumeText, selectedFile.name);
       toast.success('Resume uploaded and analyzed successfully!');
@@ -85,6 +102,15 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
         <CardTitle className="text-center text-xl font-semibold">Upload Your Resume</CardTitle>
       </CardHeader>
       <CardContent>
+        {extractionAlert && (
+          <Alert className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {extractionAlert}
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -137,7 +163,7 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
                   </span>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Supports PDF, DOCX, or TXT
+                  Supports PDF, DOCX, or TXT (TXT recommended for best results)
                 </p>
               </div>
             </>
