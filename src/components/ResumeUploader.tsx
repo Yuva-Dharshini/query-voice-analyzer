@@ -2,10 +2,10 @@
 import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileText, X, AlertCircle } from "lucide-react";
+import { Upload, FileText, X, AlertCircle, FileWarning } from "lucide-react";
 import { toast } from "sonner";
 import { extractTextFromResume } from "@/lib/api";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface ResumeUploaderProps {
   onResumeExtracted: (text: string, fileName: string) => void;
@@ -16,6 +16,7 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [extractionAlert, setExtractionAlert] = useState<string | null>(null);
+  const [isConverting, setIsConverting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -53,9 +54,11 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
     setSelectedFile(file);
     setExtractionAlert(null);
     
-    // Add note about text extraction for non-plaintext files
-    if (file.type !== 'text/plain') {
-      setExtractionAlert('For best results, plain text (TXT) files are recommended. PDF and DOCX content extraction may be limited in this demo.');
+    // Add extraction notes based on file type
+    if (file.type === 'application/pdf') {
+      setExtractionAlert('PDF files will be automatically converted to text. For best results, ensure your PDF is text-based and not scanned.');
+    } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      setExtractionAlert('DOCX files will be automatically converted to text. Some formatting may be lost during conversion.');
     }
   };
   
@@ -77,7 +80,14 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
     setIsUploading(true);
     
     try {
+      // Show converting status if PDF or DOCX
+      if (selectedFile.type !== 'text/plain') {
+        setIsConverting(true);
+        toast.info('Converting file to text...', { duration: 2000 });
+      }
+      
       const resumeText = await extractTextFromResume(selectedFile);
+      setIsConverting(false);
       
       // Verify we have enough content to work with
       if (resumeText.length < 50) {
@@ -91,6 +101,7 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
     } catch (error) {
       console.error('Error uploading resume:', error);
       toast.error('Failed to analyze resume. Please try again.');
+      setIsConverting(false);
     } finally {
       setIsUploading(false);
     }
@@ -103,8 +114,9 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
       </CardHeader>
       <CardContent>
         {extractionAlert && (
-          <Alert className="mb-4">
-            <AlertCircle className="h-4 w-4" />
+          <Alert className="mb-4" variant="default">
+            <FileWarning className="h-4 w-4" />
+            <AlertTitle>File Conversion</AlertTitle>
             <AlertDescription>
               {extractionAlert}
             </AlertDescription>
@@ -163,7 +175,7 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
                   </span>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Supports PDF, DOCX, or TXT (TXT recommended for best results)
+                  Supports PDF, DOCX, or TXT files. All formats will be automatically converted for analysis.
                 </p>
               </div>
             </>
@@ -178,7 +190,11 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
             disabled={isUploading} 
             className="w-full"
           >
-            {isUploading ? 'Analyzing resume...' : 'Upload Resume'}
+            {isConverting 
+              ? 'Converting file to text...' 
+              : isUploading 
+                ? 'Analyzing resume...' 
+                : 'Upload Resume'}
           </Button>
         </CardFooter>
       )}

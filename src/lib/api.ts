@@ -1,4 +1,3 @@
-
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_API_KEY = "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";
 
@@ -141,7 +140,6 @@ function extractQuestionsFromText(text: string): Question[] {
   }));
 }
 
-// New improved resume-specific question generator
 function generateResumeBasedQuestions(resumeText: string): Question[] {
   // Extract key elements from resume
   const skills = extractSkills(resumeText);
@@ -290,7 +288,6 @@ function generateResumeBasedQuestions(resumeText: string): Question[] {
   return questions;
 }
 
-// Helper extraction functions
 function extractSkills(text: string): string[] {
   // Extract skills section
   const skillsSection = text.match(/skills:?\s*([^]*?)(?=experience:|education:|$)/i)?.[1] || "";
@@ -533,8 +530,40 @@ export async function extractTextFromResume(file: File): Promise<string> {
       return await file.text();
     } 
     
-    // For PDF and DOCX files - in a real application we'd use a library
-    // Here we're just trying to read the file as text first
+    // For PDF files - use PDF.js for better extraction
+    if (file.type === 'application/pdf') {
+      const pdfjsLib = await import('pdfjs-dist');
+      // Set the worker source path
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+      
+      try {
+        // Convert the file to an ArrayBuffer
+        const arrayBuffer = await file.arrayBuffer();
+        // Load the PDF document
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        
+        // Extract text from each page
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map((item: any) => item.str).join(' ');
+          fullText += pageText + '\n';
+        }
+        
+        // Check if we got meaningful content
+        if (fullText.trim().length > 50) {
+          return fullText;
+        } else {
+          console.log("PDF.js extraction returned limited text, trying fallback method");
+        }
+      } catch (pdfError) {
+        console.error("Error in PDF.js extraction:", pdfError);
+      }
+    }
+    
+    // For DOCX files - in a real application we'd use a library
+    // Here we're just trying to read the file as text as a fallback
     try {
       const textContent = await file.text();
       
@@ -547,17 +576,15 @@ export async function extractTextFromResume(file: File): Promise<string> {
     }
     
     // If direct text extraction failed or returned too little content,
-    // In a real app we'd implement proper PDF/DOCX parsing
-    // For now, show a message to the user that we're using basic extraction
-    console.log("Using basic text extraction for the resume");
+    // Return a user-friendly message explaining the limitations
+    console.log("Using basic text extraction fallback for the resume");
     
     // Create a simplified representation, maintaining the file name
-    // as a potential indicator of the candidate's name
     const fileName = file.name.split('.')[0] || "Candidate";
     
-    return `NOTE: Limited text extraction from ${file.type} file. In a production app, we would use proper document parsing libraries.
+    return `NOTE: Limited text extraction from ${file.type} file. For best results, please convert your resume to plain text format before uploading.
     
-The following is the extracted content from "${file.name}":
+The following is the partially extracted content from "${file.name}":
 
 ${await file.text()}`;
   } catch (error) {
