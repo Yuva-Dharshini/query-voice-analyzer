@@ -124,23 +124,16 @@ function extractQuestionsFromText(text: string): Question[] {
 }
 
 function generateFallbackQuestions(resumeText: string): Question[] {
-  // Create personalized fallback questions based on resume text
+  // Create some basic questions based on resume text fragments
   const skills = resumeText.match(/skills?:?\s*([^.]*)/i)?.[1] || "your technical skills";
   const experience = resumeText.match(/experience:?\s*([^.]*)/i)?.[1] || "your most recent experience";
-  const education = resumeText.match(/education:?\s*([^.]*)/i)?.[1] || "your educational background";
-  
-  // Extract more specific details from resume if possible
-  const techSkills = resumeText.match(/javascript|python|react|node|aws|docker|kubernetes|sql|nosql|agile|ci\/cd/gi);
-  const projectDetails = resumeText.match(/led|implemented|developed|created|designed|maintained|collaborated/gi);
-  
-  const skillsList = techSkills ? Array.from(new Set(techSkills)).join(', ') : skills;
   
   return [
-    { id: 1, text: `Could you elaborate on your experience with ${skillsList}?` },
-    { id: 2, text: `Tell me more about your role in ${experience.trim()}.` },
-    { id: 3, text: `Based on your resume, you've worked with various technologies. Which one do you find most interesting and why?` },
-    { id: 4, text: `Can you describe a specific project where you applied the skills mentioned in your resume?` },
-    { id: 5, text: `How has your education in ${education.trim()} prepared you for your career in technology?` }
+    { id: 1, text: `Can you elaborate on your experience with ${skills.trim()}?` },
+    { id: 2, text: `Tell me more about ${experience.trim()}.` },
+    { id: 3, text: "What was the most challenging project you've worked on and why?" },
+    { id: 4, text: "How do you approach learning new technologies or skills?" },
+    { id: 5, text: "Where do you see your career heading in the next few years?" }
   ];
 }
 
@@ -204,33 +197,18 @@ export async function extractTextFromResume(file: File): Promise<string> {
     } 
     
     // For PDF and DOCX files in a real application
-    // In this demo version, we'll extract text content as best we can
-    try {
-      // Attempt to read file content directly
-      const fileContent = await file.text();
+    // In this demo version, we'll extract some basic text and add a note
+    const fileContent = await file.text().catch(() => {
+      // If we can't read the file directly, create a simulated content
+      return "Could not extract full text content from this file type.";
+    });
+    
+    // For the demo, we'll create a more realistic resume text if the file isn't plain text
+    if (file.type !== 'text/plain') {
+      // Get file name without extension for simulated name
+      const fileName = file.name.split('.')[0] || "Candidate";
       
-      // If we got this far and the content seems reasonable, return it
-      if (fileContent && fileContent.length > 100) {
-        return fileContent;
-      }
-      
-      // Otherwise, fall back to a simpler approach
-      return createSimulatedResumeContent(file);
-    } catch (error) {
-      console.log("Error reading file directly, using simulated content", error);
-      return createSimulatedResumeContent(file);
-    }
-  } catch (error) {
-    console.error("Error extracting text from resume:", error);
-    return "Error extracting text from the file. Please try again with a different file.";
-  }
-}
-
-function createSimulatedResumeContent(file: File): string {
-  // Get file name without extension for simulated name
-  const fileName = file.name.split('.')[0] || "Candidate";
-  
-  return `
+      return `
 Name: ${fileName.replace(/[_-]/g, ' ')}
 Contact: example@email.com | (555) 123-4567
 
@@ -257,5 +235,12 @@ Software Engineer at WebApps Co. (2016-2019)
 
 Education:
 B.S. Computer Science, Tech University (2016)
-  `;
+      `;
+    }
+    
+    return fileContent;
+  } catch (error) {
+    console.error("Error extracting text from resume:", error);
+    return "Error extracting text from the file. Please try again with a different file.";
+  }
 }
