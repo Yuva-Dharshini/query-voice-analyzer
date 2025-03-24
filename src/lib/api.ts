@@ -29,7 +29,9 @@ Examples:
 - If they list "React", ask about specific React projects or complex components they built.
 - If they note performance improvements (e.g., "improved system performance by 40%"), ask specifically how they measured and achieved this.
 
-Every question must contain specific details from the resume to ensure relevance.`
+Every question must contain specific details from the resume to ensure relevance.
+
+RESPONSE FORMAT: Return ONLY an array of 5 questions with no preamble text, headings, or explanations.`
       },
       {
         "role": "user",
@@ -38,7 +40,7 @@ Every question must contain specific details from the resume to ensure relevance
 RESUME:
 ${resumeText}
 
-Format your response as a JSON array of objects with 'id' and 'text' fields.`
+Return ONLY 5 questions with no preamble, headings, or extra text.`
       }
     ],
     "temperature": 0.5,
@@ -81,7 +83,7 @@ Format your response as a JSON array of objects with 'id' and 'text' fields.`
       console.log("Response not in JSON format, extracting questions...");
     }
     
-    // Extract questions using regex pattern matching
+    // Extract questions using improved regex pattern matching
     const extractedQuestions = extractQuestionsFromText(content);
     
     if (extractedQuestions.length > 0) {
@@ -97,47 +99,61 @@ Format your response as a JSON array of objects with 'id' and 'text' fields.`
 }
 
 function extractQuestionsFromText(text: string): Question[] {
+  // Clean up any preamble text like "Here are 5 highly specific interview questions..."
+  const cleanedText = text
+    .replace(/Here are \d+ highly specific interview questions[^:]*:/i, '')
+    .replace(/These questions are based on information explicitly mentioned in your resume:/i, '')
+    .replace(/Based on your resume, here are \d+ interview questions:/i, '')
+    .trim();
+  
   // Try multiple patterns to extract questions
   
   // Pattern 1: Numbered questions (e.g., "1. How did you...")
-  const numberedRegex = /\d+\.\s+(.*?)(?=\d+\.|$)/gs;
-  const numberedMatches = Array.from(text.matchAll(numberedRegex));
+  const numberedRegex = /\d+\.?\s+(.*?)(?=(?:\d+\.)|$)/gs;
+  const numberedMatches = Array.from(cleanedText.matchAll(numberedRegex));
   
   if (numberedMatches.length > 0) {
     return numberedMatches.map((match, index) => ({
       id: index + 1,
       text: match[1].trim()
-    })).filter(q => q.text);
+    })).filter(q => q.text && q.text.length > 10);
   }
   
   // Pattern 2: Questions with "Question X:" format
   const questionXRegex = /Question\s+\d+:?\s+(.*?)(?=Question\s+\d+|$)/gis;
-  const questionXMatches = Array.from(text.matchAll(questionXRegex));
+  const questionXMatches = Array.from(cleanedText.matchAll(questionXRegex));
   
   if (questionXMatches.length > 0) {
     return questionXMatches.map((match, index) => ({
       id: index + 1,
       text: match[1].trim()
-    })).filter(q => q.text);
+    })).filter(q => q.text && q.text.length > 10);
   }
   
   // Pattern 3: Lines that end with question marks
-  const questionMarkRegex = /^(.+\?\s*)$/gm;
-  const questionMarkMatches = Array.from(text.matchAll(questionMarkRegex));
+  const questionMarkRegex = /(.*?\?)\s*$/gm;
+  const questionMarkMatches = Array.from(cleanedText.matchAll(questionMarkRegex));
   
   if (questionMarkMatches.length > 0) {
     return questionMarkMatches.map((match, index) => ({
       id: index + 1,
       text: match[1].trim()
-    })).filter(q => q.text);
+    })).filter(q => q.text && q.text.length > 10);
   }
   
-  // Pattern 4: Split by newlines and look for question-like lines
-  const lines = text.split('\n').filter(line => line.trim().length > 10);
-  return lines.slice(0, 5).map((line, index) => ({
-    id: index + 1,
-    text: line.trim().replace(/^\d+[\.\)]\s*/, '')
-  }));
+  // Pattern 4: Split by newlines and look for question-like lines (fallback)
+  const lines = cleanedText.split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 15 && !line.startsWith("Here are"));
+  
+  if (lines.length > 0) {
+    return lines.slice(0, 5).map((line, index) => ({
+      id: index + 1,
+      text: line.replace(/^\d+[\.\)]\s*/, '').trim()
+    })).filter(q => q.text && q.text.length > 10);
+  }
+  
+  return [];
 }
 
 function generateResumeBasedQuestions(resumeText: string): Question[] {
