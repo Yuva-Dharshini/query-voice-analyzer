@@ -16,6 +16,7 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [extractionAlert, setExtractionAlert] = useState<string | null>(null);
+  const [conversionStatus, setConversionStatus] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -52,10 +53,13 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
     
     setSelectedFile(file);
     setExtractionAlert(null);
+    setConversionStatus(null);
     
-    // Add note about text extraction for non-plaintext files
-    if (file.type !== 'text/plain') {
-      setExtractionAlert('For best results, plain text (TXT) files are recommended. PDF and DOCX content extraction may be limited in this demo.');
+    // Add specific note about file type
+    if (file.type === 'application/pdf') {
+      setExtractionAlert('PDF file detected. We will automatically convert it to text for better analysis.');
+    } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      setExtractionAlert('DOCX file detected. We will automatically convert it to text for better analysis.');
     }
   };
   
@@ -66,6 +70,7 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
   const handleRemoveFile = () => {
     setSelectedFile(null);
     setExtractionAlert(null);
+    setConversionStatus(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -77,6 +82,11 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
     setIsUploading(true);
     
     try {
+      // For PDF and DOCX files, show conversion status
+      if (selectedFile.type !== 'text/plain') {
+        setConversionStatus('Converting file to text...');
+      }
+      
       const resumeText = await extractTextFromResume(selectedFile);
       
       // Verify we have enough content to work with
@@ -86,6 +96,9 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
         return;
       }
       
+      // If conversion was successful, clear the status
+      setConversionStatus(null);
+      
       onResumeExtracted(resumeText, selectedFile.name);
       toast.success('Resume uploaded and analyzed successfully!');
     } catch (error) {
@@ -93,6 +106,7 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
       toast.error('Failed to analyze resume. Please try again.');
     } finally {
       setIsUploading(false);
+      setConversionStatus(null);
     }
   };
   
@@ -163,7 +177,7 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
                   </span>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Supports PDF, DOCX, or TXT (TXT recommended for best results)
+                  Supports PDF, DOCX, or TXT formats - all will be automatically converted for analysis
                 </p>
               </div>
             </>
@@ -172,7 +186,13 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({ onResumeExtracted }) =>
       </CardContent>
       
       {selectedFile && (
-        <CardFooter>
+        <CardFooter className="flex flex-col gap-2">
+          {conversionStatus && (
+            <div className="text-sm text-muted-foreground flex items-center gap-2 w-full mb-2">
+              <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full"></div>
+              {conversionStatus}
+            </div>
+          )}
           <Button 
             onClick={handleUpload} 
             disabled={isUploading} 
