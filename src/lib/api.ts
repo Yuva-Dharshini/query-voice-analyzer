@@ -1,5 +1,5 @@
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_API_KEY = "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";
+const GROQ_API_KEY = "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";
 
 export type Question = {
   id: number;
